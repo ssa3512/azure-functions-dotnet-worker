@@ -1,4 +1,4 @@
-// Copyright (c) .NET Foundation. All rights reserved.
+﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
@@ -9,9 +9,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Extensions.Abstractions;
+using Microsoft.Azure.Functions.Worker.Extensions.Http;
+using Microsoft.Azure.Functions.Worker.Extensions.Storage;
 using Microsoft.Azure.Functions.Worker.Sdk;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Xunit;
 
 namespace Microsoft.Azure.Functions.SdkTests
@@ -55,6 +57,79 @@ namespace Microsoft.Azure.Functions.SdkTests
             }
 
             FunctionMetadataJsonWriter.WriteMetadata(functions, ".");
+        }
+
+        [Fact]
+        public void NewHttpTriggerTest()
+        {
+            var generator = new FunctionMetadataGenerator();
+            var typeDef = TestUtility.GetTypeDefinition(typeof(NewHttpWithQueue));
+            var functions = generator.GenerateFunctionMetadata(typeDef);
+
+            var extensions = generator.Extensions;
+
+            ValidateFunction(functions.Single(), NewHttpWithQueue.FunctionName, GetEntryPoint(nameof(NewHttpWithQueue), nameof(NewHttpWithQueue.Http)),
+                b => ValidateTrigger(b),
+                b => ValidateReturn(b),
+                b => ValidateQueueOutput(b));
+
+            AssertDictionary(extensions, new Dictionary<string, string>
+            {
+                { "Microsoft.Azure.WebJobs.Extensions.Storage", "4.0.3" }
+            });
+
+            // TODO: Make sure these objects aren't case-sensitive.
+            // eg- "Name" will now be "name"
+            void ValidateTrigger(ExpandoObject b)
+            {
+                AssertExpandoObject(b, new Dictionary<string, object>
+                {
+                    { "name", "myReq" },
+                    { "Type", "HttpTrigger" },
+                    { "Direction", "In" },
+                    { "authLevel", "Admin" },
+                    { "methods", new[] { "get", "Post" } },
+                    { "Route", "/api2" }
+                });
+            }
+
+            void ValidateReturn(ExpandoObject b)
+            {
+                AssertExpandoObject(b, new Dictionary<string, object>
+                {
+                    { "Name", "$return" },
+                    { "Type", "http" },
+                    { "Direction", "Out" }
+                });
+            }
+
+            void ValidateQueueOutput(ExpandoObject b)
+            {
+                AssertExpandoObject(b, new Dictionary<string, object>
+                {
+                    { "name", "myQueueOutput" },
+                    { "Type", "Queue" },
+                    { "Direction", "Out" },
+                    { "queueName", "SomeQueue" },
+                });
+            }
+
+            FunctionMetadataJsonWriter.WriteMetadata(functions, ".");
+        }
+
+        [Fact]
+        public void ProduceExtensionBinary()
+        {
+            var generator = new FunctionMetadataGenerator();
+            var typeDef = TestUtility.GetTypeDefinition(typeof(NewHttpWithQueue));
+            var _ = generator.GenerateFunctionMetadata(typeDef);
+
+            var extensions = generator.Extensions;
+
+            var extensionGenerator = new ExtensionsPackageGenerator(extensions, Environment.CurrentDirectory);
+            extensionGenerator.GenerateExtensionAssemblies();
+
+            Assert.Equal(1, extensions.Count);
         }
 
         [Fact]
@@ -167,6 +242,11 @@ namespace Microsoft.Azure.Functions.SdkTests
         {
             var dict = (IDictionary<string, object>)expando;
 
+            AssertDictionary(dict, expected);
+        }
+
+        private static void AssertDictionary<K,V>(IDictionary<K, V> dict, IDictionary<K, V> expected)
+        {
             Assert.Equal(expected.Count, dict.Count);
 
             foreach (var kvp in expected)
@@ -180,7 +260,20 @@ namespace Microsoft.Azure.Functions.SdkTests
             public const string FunctionName = "BasicHttpFunction";
 
             [FunctionName(FunctionName)]
-            public Task<HttpResponseData> Http([HttpTrigger(AuthorizationLevel.Admin, "get", "Post", Route = "/api2")] HttpRequestData myReq)
+            public Task<HttpResponseData> Http([HttpTrigger(WebJobs.Extensions.Http.AuthorizationLevel.Admin, "get", "Post", Route = "/api2")] HttpRequestData myReq)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        private class NewHttpWithQueue
+        {
+            public const string FunctionName = "NewHttpFunction";
+
+            [WorkerFunctionName(FunctionName)]
+            [HttpEventTrigger("myReq", Worker.Extensions.Http.AuthorizationLevel.Admin, "get", "Post", Route = "/api2")]
+            [QueueOutput("myQueueOutput", "SomeQueue")]
+            public Task<HttpResponseData> Http(HttpRequestData myReq)
             {
                 throw new NotImplementedException();
             }

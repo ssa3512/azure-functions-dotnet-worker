@@ -1,4 +1,4 @@
-// Copyright (c) .NET Foundation. All rights reserved.
+﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
 using System;
@@ -15,14 +15,30 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
     {
         private readonly IndentableLogger _logger;
 
+        // TODO: Verify that we don't need to allow
+        // same extensions of different versions. Picking the last version for now.
+        // We can also just add all the versions of extensions and then let the
+        // build pick the one it likes.
+        private readonly IDictionary<string, string> _extensions;
+
         public FunctionMetadataGenerator()
             : this((l, m) => { })
         {
+            _extensions = new Dictionary<string, string>();
         }
 
         public FunctionMetadataGenerator(Action<TraceLevel, string> log)
         {
             _logger = new IndentableLogger(log);
+            _extensions = new Dictionary<string, string>();
+        }
+
+        public IDictionary<string, string> Extensions
+        {
+            get
+            {
+                return _extensions;
+            }
         }
 
         public IEnumerable<SdkFunctionMetadata> GenerateFunctionMetadata(string assemblyPath, IEnumerable<string> referencePaths)
@@ -98,13 +114,24 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
 
             foreach (MethodDefinition method in type.Methods)
             {
-                if (!TryCreateFunctionMetadata(method, out SdkFunctionMetadata? metadata)
+                //if (!TryCreateFunctionMetadata(method, out SdkFunctionMetadata? metadata)
+                //    || metadata == null)
+                //{
+                //    continue;
+                //}
+
+                if (!TryCreateWorkerFunctionMetadata(method, out SdkFunctionMetadata? metadata)
                     || metadata == null)
                 {
                     continue;
                 }
 
-                foreach (var binding in CreateBindingMetadata(method))
+                //foreach (var binding in CreateBindingMetadata(method))
+                //{
+                //    metadata.Bindings.Add(binding);
+                //}
+
+                foreach (var binding in CreateBindingMetadataAndAddExtensions(method))
                 {
                     metadata.Bindings.Add(binding);
                 }
@@ -115,6 +142,101 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
             return functions;
         }
 
+        private IEnumerable<ExpandoObject> CreateBindingMetadataAndAddExtensions(MethodDefinition method)
+        {
+            var bindingMetadata = new List<ExpandoObject>();
+
+            foreach (CustomAttribute attribute in method.CustomAttributes)
+            {
+                if (IsWorkerBinding(attribute))
+                {
+                    // TODO: fix this if we continue to use "<>EventAttribute" (questionable)
+                    string bindingType = attribute.AttributeType.Name.Replace("EventTriggerAttribute", "Trigger");
+                    bindingType = bindingType.Replace("OutputAttribute", string.Empty);
+                    bindingType = bindingType.Replace("InputAttribute", string.Empty);
+                    bindingType = bindingType.Replace("Attribute", string.Empty);
+
+                    ExpandoObject binding = new ExpandoObject();
+                    var bindingDict = (IDictionary<string, object>)binding;
+
+                    bindingDict["Type"] = bindingType;
+                    bindingDict["Direction"] = GetBindingDirection(attribute);
+
+                    foreach (var property in GetAttributeProperties(attribute))
+                    {
+                        bindingDict.Add(property.Key, property.Value);
+                    }
+
+                    bindingMetadata.Add(binding);
+                    AddExtensionInfo(_extensions, attribute);
+
+                    // TODO: Fix $return detection
+                    // auto-add a return type for http for now
+                    if (string.Equals(bindingType, "httptrigger", StringComparison.OrdinalIgnoreCase))
+                    {
+                        IDictionary<string, object> returnBinding = new ExpandoObject();
+                        returnBinding["Name"] = "$return";
+                        returnBinding["Type"] = "http";
+                        returnBinding["Direction"] = "Out";
+
+                        bindingMetadata.Add((ExpandoObject)returnBinding);
+                    }
+                }
+            }
+
+            return bindingMetadata;
+        }
+
+        private static void AddExtensionInfo(IDictionary<string, string> extensions, CustomAttribute attribute)
+        {
+            AssemblyDefinition extensionAssemblyDefintion = attribute.AttributeType.Resolve().Module.Assembly;
+
+            foreach (var assemblyAttribute in extensionAssemblyDefintion.CustomAttributes)
+            {
+                if (assemblyAttribute.AttributeType.FullName.Equals("Microsoft.Azure.Functions.Worker.Extensions.Abstractions.ExtensionInformationAttribute", StringComparison.OrdinalIgnoreCase))
+                {
+                    string extensionName = assemblyAttribute.ConstructorArguments[0].Value.ToString();
+                    string extensionVersion = assemblyAttribute.ConstructorArguments[1].Value.ToString();
+
+                    extensions[extensionName] = extensionVersion;
+
+                    // Only 1 extension per library
+                    return;
+                }
+            }
+        }
+
+        private static bool IsWorkerBinding(CustomAttribute attribute)
+        {
+            return TryGetBaseAttributeType(attribute, "Microsoft.Azure.Functions.Worker.Extensions.Abstractions.BindingAttribute", out _);
+        }
+
+        private static string GetBindingDirection(CustomAttribute attribute)
+        {
+            if (TryGetBaseAttributeType(attribute, "Microsoft.Azure.Functions.Worker.Extensions.Abstractions.OutputBindingAttribute", out _))
+            {
+                return "Out";
+            }
+
+            return "In";
+        }
+
+        private static bool TryGetBaseAttributeType(CustomAttribute attribute, string baseType, out TypeReference? baseTypeRef)
+        {
+            baseTypeRef = attribute.AttributeType?.Resolve()?.BaseType;
+
+            while (baseTypeRef != null)
+            {
+                if (baseTypeRef.FullName.Equals(baseType, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                baseTypeRef = baseTypeRef.Resolve().BaseType;
+            }
+
+            return false;
+        }
 
         private IEnumerable<ExpandoObject> CreateBindingMetadata(MethodDefinition method)
         {
@@ -126,7 +248,9 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
                 {
                     if (IsWebJobsBinding(attribute))
                     {
-                        string bindingType = attribute.AttributeType.Name.Replace("Attribute", string.Empty);
+                        // TODO: fix this if we continue to use "<>EventAttribute" (questionable)
+                        string bindingType = attribute.AttributeType.Name.Replace("EventAttribute", string.Empty);
+                        bindingType = bindingType.Replace("Attribute", string.Empty);
 
                         ExpandoObject binding = new ExpandoObject();
                         var bindingDict = (IDictionary<string, object>)binding;
@@ -258,6 +382,42 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
         {
             return attribute.AttributeType.Resolve().CustomAttributes
                 .Any(p => p.AttributeType.FullName == "Microsoft.Azure.WebJobs.Description.BindingAttribute");
+        }
+
+        private bool TryCreateWorkerFunctionMetadata(MethodDefinition method, out SdkFunctionMetadata? function)
+        {
+            function = null;
+
+            foreach (CustomAttribute attribute in method.CustomAttributes)
+            {
+                if (attribute.AttributeType.FullName == "Microsoft.Azure.Functions.Worker.Extensions.Abstractions.WorkerFunctionNameAttribute")
+                {
+                    TypeDefinition declaringType = method.DeclaringType;
+
+                    string assemblyName = declaringType.Module.Assembly.Name.Name;
+
+                    var functionName = attribute.ConstructorArguments.SingleOrDefault().Value.ToString();
+
+                    if (string.IsNullOrEmpty(functionName))
+                    {
+                        continue;
+                    }
+
+                    function = new SdkFunctionMetadata
+                    {
+                        Name = functionName,
+                        ScriptFile = $"bin/{assemblyName}.dll",
+                        EntryPoint = $"{declaringType.GetReflectionFullName()}.{method.Name}",
+                        Language = "dotnet-isolated"
+                    };
+
+                    function.Properties["IsCodeless"] = false;
+
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool TryCreateFunctionMetadata(MethodDefinition method, out SdkFunctionMetadata? function)
