@@ -118,21 +118,6 @@ namespace Microsoft.Azure.Functions.SdkTests
         }
 
         [Fact]
-        public void ProduceExtensionBinary()
-        {
-            var generator = new FunctionMetadataGenerator();
-            var typeDef = TestUtility.GetTypeDefinition(typeof(NewHttpWithQueue));
-            var _ = generator.GenerateFunctionMetadata(typeDef);
-
-            var extensions = generator.Extensions;
-
-            var extensionGenerator = new ExtensionsPackageGenerator(extensions, Environment.CurrentDirectory);
-            extensionGenerator.GenerateExtensionAssemblies();
-
-            Assert.Equal(1, extensions.Count);
-        }
-
-        [Fact]
         public void StorageFunctions()
         {
             var generator = new FunctionMetadataGenerator();

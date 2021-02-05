@@ -41,6 +41,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Worker.Extensions.Abstracti
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Worker.Extensions.Storage", "extensions\Worker.Extensions.Storage\Worker.Extensions.Storage.csproj", "{D6EAB0C1-491C-4723-B1F3-B6F5461CD359}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NewFunctionApp", "samples\NewFunctionApp\NewFunctionApp.csproj", "{5C070D59-68BA-489C-8C25-D5AE9298AB75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +89,10 @@ Global
 		{D6EAB0C1-491C-4723-B1F3-B6F5461CD359}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6EAB0C1-491C-4723-B1F3-B6F5461CD359}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6EAB0C1-491C-4723-B1F3-B6F5461CD359}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C070D59-68BA-489C-8C25-D5AE9298AB75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C070D59-68BA-489C-8C25-D5AE9298AB75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C070D59-68BA-489C-8C25-D5AE9298AB75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C070D59-68BA-489C-8C25-D5AE9298AB75}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -101,6 +107,7 @@ Global
 		{1E601406-6923-4CB9-AAD7-928E08906B10} = {A7B4FF1E-3DF7-4F28-9333-D0961CDDF702}
 		{B5F66802-0968-4B99-8E97-E42C744CE5CE} = {A7B4FF1E-3DF7-4F28-9333-D0961CDDF702}
 		{D6EAB0C1-491C-4723-B1F3-B6F5461CD359} = {A7B4FF1E-3DF7-4F28-9333-D0961CDDF702}
+		{5C070D59-68BA-489C-8C25-D5AE9298AB75} = {9D6603BD-7EA2-4D11-A69C-0D9E01317FD6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {497D2ED4-A13E-4BCA-8D29-F30CA7D0EA4A}

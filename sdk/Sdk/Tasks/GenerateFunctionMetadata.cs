@@ -17,6 +17,9 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
         public string? OutputPath { get; set; }
 
         [Required]
+        public string? ExtensionsCsProjFilePath { get; set; }
+
+        [Required]
         public ITaskItem[]? ReferencePaths { get; set; }
 
         public override bool Execute()
@@ -25,9 +28,9 @@ namespace Microsoft.Azure.Functions.Worker.Sdk
             var functions = functionGenerator.GenerateFunctionMetadata(AssemblyPath!, ReferencePaths.Select(p => p.ItemSpec));
 
             var extensions = functionGenerator.Extensions;
-            var extensionGenerator = new ExtensionsPackageGenerator(extensions, OutputPath!);
+            var extensionsCsProjGenerator = new ExtensionsCsprojGenerator(extensions, ExtensionsCsProjFilePath!);
 
-            extensionGenerator.GenerateExtensionAssemblies();
+            extensionsCsProjGenerator.Generate();
 
             FunctionMetadataJsonWriter.WriteMetadata(functions, OutputPath!);
 

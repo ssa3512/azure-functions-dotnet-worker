@@ -6,6 +6,7 @@ using System.Net;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Extensions.Abstractions;
 using Microsoft.Azure.Functions.Worker.Extensions.Http;
+using Microsoft.Azure.Functions.Worker.Extensions.Storage;
 using Microsoft.Azure.Functions.Worker.Pipeline;
 using Microsoft.Extensions.Logging;
 
@@ -15,6 +16,7 @@ namespace FunctionApp
     {
         [WorkerFunctionName("Function4")]
         [HttpEventTrigger("req", AuthorizationLevel.Anonymous, "get", "post", Route = null)]
+        [QueueOutput("output", "my-fancy-queue", Connection = "QueueOutputBindingSet")]
         public static HttpResponseData Run(HttpRequestData req, FunctionExecutionContext executionContext)
         {
             var logger = executionContext.Logger;
@@ -26,6 +28,8 @@ namespace FunctionApp
 
             response.Headers = headers;
             response.Body = "Welcome to .NET 5!!";
+
+            executionContext.OutputBindings["output"] = "ayyy";
 
             return response;
         }

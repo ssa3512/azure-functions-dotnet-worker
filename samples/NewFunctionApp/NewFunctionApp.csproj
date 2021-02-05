@@ -14,15 +14,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.0.0-preview3" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Abstractions" Version="1.0.0-preview4-local202102040407" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="1.0.0-preview4-local202102040406" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage" Version="1.0.0-preview4-local202102040406" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.0.0-preview4-local202102040405" />
+    <!--<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.0.0-preview3" />-->
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Abstractions" Version="1.0.0-preview4-local202102041841" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="1.0.0-preview4-local202102041840" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage" Version="1.0.0-preview4-local202102041841" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.0.0-preview4-local202102050149" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Script.Abstractions" Version="1.0.0-preview" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Script.ExtensionsMetadataGenerator" Version="1.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="System.Net.NameResolution" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DotNetWorker\DotNetWorker.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">

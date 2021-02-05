@@ -21,26 +21,51 @@ WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and
   <UsingTask TaskName="GenerateFunctionMetadata"
            AssemblyFile="$(_FunctionsTaskAssemblyFullPath)"/>
 
-  <Target Name="_FunctionsPostBuild" AfterTargets="Build">    
+  <Target Name="_FunctionsPostBuild" AfterTargets="Build">
+
+    <PropertyGroup>
+      <OutputFile>$(TargetDir)\worker.config.json</OutputFile>
+      <ExtensionsCsProjFilePath>$([System.IO.Path]::Combine($([System.IO.Path]::GetTempPath()), $([System.IO.Path]::GetRandomFileName())))</ExtensionsCsProjFilePath>
+    </PropertyGroup>
     
     <GenerateFunctionMetadata 
       AssemblyPath="$(TargetDir)$(AssemblyName).dll" 
       ReferencePaths="@(ReferencePath)"
+      ExtensionsCsProjFilePath="$(ExtensionsCsProjFilePath)"
       OutputPath="$(TargetDir)"/>
 
     <Copy 
       SourceFiles="$(_FunctionsMetadataLoaderExtensionFile)"
       DestinationFolder="$(TargetDir)"
       OverwriteReadOnlyFiles="true" />
-    
-    <PropertyGroup>
-      <OutputFile>$(TargetDir)\worker.config.json</OutputFile>
-    </PropertyGroup>
+
     <WriteLinesToFile
         File="$(OutputFile)"
         Lines="$([System.IO.File]::ReadAllText($(_FunctionsWorkerConfigInputFile)).Replace('$functionAssembly$', $(TargetFileName)))"
         Overwrite="true" />
-  </Target> 
+  </Target>
+
+  <Target Name ="_WorkerExtensionsBuild" AfterTargets="_WorkerExtensionsRestore">
+    <MSBuild Projects="$(ExtensionsCsProjFilePath)\WorkerExtensions.csproj" Targets="Build" Properties="Configuration=Release;OutputPath=$(TargetDir)\.azurefunctions;CopyLocalLockFileAssemblies=true"/>
+  </Target>
+
+  <Target Name="_WorkerExtensionsRestore" AfterTargets="_FunctionsPostBuild">
+    <MSBuild Projects="$(ExtensionsCsProjFilePath)\WorkerExtensions.csproj" Targets="Restore" Properties="IsRestoring=true"/>
+  </Target>
+  
+  <!--
+   TODO: This target is temporary, as the Host doesn't probe from the ".azurefunctions" directory right now. So we are just replacing everything from bin.
+  -->
+
+  <Target Name="_WorkerExtensionsMoveTemporarily" AfterTargets="_WorkerExtensionsBuild">
+    <ItemGroup>
+      <_CopyItems Include="$(TargetDir)\.azurefunctions\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_CopyItems)"
+      DestinationFolder="$(TargetDir)\bin"
+      OverwriteReadonlyFiles="true"/>
+  </Target>
 
   <!-- 
   The targets below are temporary and can be removed once the change to allow running with an extensions.json
@@ -190,9 +215,15 @@ WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and
           DestinationFiles="$(PublishDir)bin\%(RecursiveDir)%(Filename)%(Extension)"
           OverwriteReadOnlyFiles="true" />
 
+    <PropertyGroup>
+      <OutputFile>$(PublishDir)\worker.config.json</OutputFile>
+      <ExtensionsCsProjFilePath>$([System.IO.Path]::Combine($([System.IO.Path]::GetTempPath()), $([System.IO.Path]::GetRandomFileName())))</ExtensionsCsProjFilePath>
+    </PropertyGroup>
+    
     <GenerateFunctionMetadata
       AssemblyPath="$(PublishDir)\bin\$(AssemblyName).dll"
       ReferencePaths="@(ReferencePath)"
+      ExtensionsCsProjFilePath="$(ExtensionsCsProjFilePath)"
       OutputPath="$(PublishDir)"/>
     
     <Copy
@@ -200,14 +231,37 @@ WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and
       DestinationFolder="$(PublishDir)\bin"
       OverwriteReadOnlyFiles="true" />
 
-    <PropertyGroup>
-      <OutputFile>$(PublishDir)\worker.config.json</OutputFile>
-    </PropertyGroup>
     <WriteLinesToFile
         File="$(OutputFile)"
         Lines="$([System.IO.File]::ReadAllText($(_FunctionsWorkerConfigInputFile)).Replace('$functionAssembly$', $(TargetFileName)))"
         Overwrite="true" />
 
+  </Target>
+
+  <Target Name ="_WorkerExtensionsPublish" AfterTargets="_WorkerExtensionsRestorePublish">
+    <MSBuild Projects="$(ExtensionsCsProjFilePath)\WorkerExtensions.csproj" Targets="Build" Properties="Configuration=Release;OutputPath=$(PublishDir)\.azurefunctions;CopyLocalLockFileAssemblies=true"/>
+  </Target>
+
+  <Target Name="_WorkerExtensionsRestorePublish" AfterTargets="_FunctionsPostPublish">
+    <MSBuild Projects="$(ExtensionsCsProjFilePath)\WorkerExtensions.csproj" Targets="Restore" Properties="IsRestoring=true"/>
+  </Target>
+
+  <!--
+   TODO: This target is temporary, as the Host doesn't probe from the ".azurefunctions" directory right now. So we are just replacing everything from bin.
+  -->
+
+  <Target Name="_WorkerExtensionsMoveTemporarilyPublish" AfterTargets="_WorkerExtensionsPublish">
+    <PropertyGroup>
+      <DestinationCopyPublish>$(PublishDir)\bin</DestinationCopyPublish>
+      <FromCopyPublish>$(PublishDir)\.azurefunctions</FromCopyPublish>
+    </PropertyGroup>
+    <ItemGroup>
+      <_CopyItemsPublish Include="$(FromCopyPublish)\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_CopyItemsPublish)"
+      DestinationFolder="$(DestinationCopyPublish)"
+      OverwriteReadonlyFiles="true"/>
   </Target>
 
   <!--

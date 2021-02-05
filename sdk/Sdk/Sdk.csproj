@@ -2,7 +2,7 @@
 
   <Import Project="..\..\build\Common.props" />
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>preview</LangVersion>
     <AssemblyName>Microsoft.Azure.Functions.Worker.Sdk</AssemblyName>
     <RootNamespace>Microsoft.Azure.Functions.Worker.Sdk</RootNamespace>
@@ -34,11 +34,6 @@
       <PackagePath>tools\netstandard2.0</PackagePath>
     </None>
 
-    <None Include="$(OutputPath)Microsoft.Build.Locator.dll">
-      <Pack>true</Pack>
-      <PackagePath>tools\netstandard2.0</PackagePath>
-    </None>
-
     <None Include="$(FunctionsGeneratorOutputPath)Microsoft.Azure.WebJobs.Extensions.FunctionMetadataLoader.dll">
       <Pack>true</Pack>
       <PackagePath>tools\netstandard2.0</PackagePath>
@@ -47,9 +42,7 @@
   </ItemGroup>  
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Locator" Version="1.4.1"/>
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.8.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Build" Version="16.8.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.8.0" />
     <PackageReference Include="Mono.Cecil" Version="0.11.3" />
     <PackageReference Include="System.Text.Json" Version="5.0.0" />
   </ItemGroup>  
